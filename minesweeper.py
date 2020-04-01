@@ -23,10 +23,23 @@ class Application(tk.Frame):
         super().__init__(root)
         self.root = root
         self.game = None
-        self.top_menu = TopMenu(self)
+        self.make_top_menu()
         self.top_menu.pack(side='top')
         self.pack()
         self.root.bind('<Destroy>', self.destroy)
+
+    def make_top_menu(self):
+        self.top_menu = tk.Frame(self)
+
+        self.top_menu.label = tk.Label(self.top_menu, text='Board Size')
+        self.top_menu.drop_down = tk.Listbox(self.top_menu, height=3, width=12)
+        self.top_menu.drop_down.insert(0, 'small')
+        self.top_menu.drop_down.insert(1, 'medium')
+        self.top_menu.drop_down.insert(2, 'large')
+        self.top_menu.confirm_button = tk.Button(self.top_menu, text='Start Game', command=self.start_game)
+        self.top_menu.label.pack(side='left', padx=5)
+        self.top_menu.drop_down.pack(side='left', padx=5)
+        self.top_menu.confirm_button.pack(side='left', padx=5)
 
     def start_game(self):
         if self.game != None:
@@ -50,22 +63,6 @@ class Application(tk.Frame):
             for line in lines:
                 f.write(f'{line}\n')
 
-class TopMenu(tk.Frame):
-
-    def __init__(self, root):
-        super().__init__(root)
-        self.root = root
-
-        self.label = tk.Label(self, text='Board Size')
-        self.drop_down = tk.Listbox(self, height=3, width=12)
-        self.drop_down.insert(0, 'small')
-        self.drop_down.insert(1, 'medium')
-        self.drop_down.insert(2, 'large')
-        self.confirm_button = tk.Button(self, text='Start Game', command=self.root.start_game)
-        self.label.pack(side='left', padx=5)
-        self.drop_down.pack(side='left', padx=5)
-        self.confirm_button.pack(side='left', padx=5)
-
 class Game(tk.Frame):
 
     BOMBS_FOR_SIZE = defaultdict(lambda: 40, small=10, medium=40, large=99)
@@ -84,8 +81,9 @@ class Game(tk.Frame):
         self.button_images = self.get_images()
         self.info = Board(self.length)
         self.buttons = Board(self.length)
+
         self.populate_buttons()
-        self.header = GameHeader(self)
+        self.create_header()
         self.header.grid(row=0, columnspan=self.length)
 
     def event_handler(self, event, x, y):
@@ -104,48 +102,6 @@ class Game(tk.Frame):
             self.flag(x, y)
         elif event == 'double_left_click':
             self.explore(x, y)
-
-    def populate_buttons(self):
-        for x in range(self.length):
-            for y in range(self.length):
-                self.buttons[x][y] = TileButton(self, x, y)
-                self.buttons[x][y].configure(image=self.button_images['Unpressed'], borderwidth=0)
-                self.buttons[x][y].grid(row=x+1, column=y)
-
-    def populate_board(self, x, y):
-        self.placed_bombs = 0
-        while self.placed_bombs < self.bomb_count:
-            i = random.randint(0, self.length-1)
-            j = random.randint(0, self.length-1)
-            if (x-i)**2>1 or (y-j)**2>1:
-                self.info[i][j] = TileInfo('Mine', i, j)
-                self.placed_bombs +=1
-        for i in range(self.length):
-            for j in range(self.length):
-                if self.info[i][j] == None:
-                    self.info[i][j] = TileInfo('Empty', i, j)
-
-    def update_bombs(self):
-        if self.is_over:
-            return
-        num = self.bomb_count - self.flag_count
-        self.header.bomb_label['text'] = f'{num:03}'
-
-    def update_timer(self):
-        if self.is_over:
-            return
-        elapsed = int(time.time() - self.start)
-        self.header.timer['text'] = f'{elapsed:03}'
-        self.parent.after(1000, self.update_timer)
-
-    def get_images(self):
-        # os.chdir(f'{sys.path[0]}/Images/')
-        image_dic = {}
-        print(f'{sys.path[0]}\\Images\\*.png')
-        for file in glob.glob(f'{sys.path[0]}\\Images\\*.png'):
-            key = file.split('.')[0]
-            image_dic[key] = tk.PhotoImage(file=file)
-        return image_dic
 
     def check(self, x, y):
         if self.info[x][y].flagged:
@@ -194,6 +150,58 @@ class Game(tk.Frame):
                     if not self.info[i][j].clicked and not self.info[i][j].flagged:
                         self.check(i, j)
 
+    def create_header(self):
+        self.header = tk.Frame(self)
+        self.header.bomb_label = tk.Label(self.header, text=f'{self.bomb_count:03}', font=("Courier", 15), bg='black', fg='red')
+        self.header.timer = tk.Label(self.header, text=f'000', font=("Courier", 15), bg='black', fg='red')
+        self.header.best_label = tk.Label(self.header, text = 'Best Time:', font=('Courier', 10))
+        self.header.best_time = tk.Label(self.header, text=f'{best_times[self.size]:03}', font=('Courier', 10))
+        self.header.bomb_label.pack(side='left', padx=2)
+        self.header.best_label.pack(side='left', padx=1)
+        self.header.best_time.pack(side='left', padx=1)
+        self.header.timer.pack(side='left', padx=2)
+
+    def populate_buttons(self):
+        for x in range(self.length):
+            for y in range(self.length):
+                self.buttons[x][y] = TileButton(self, x, y)
+                self.buttons[x][y].configure(image=self.button_images['Unpressed'], borderwidth=0)
+                self.buttons[x][y].grid(row=x+1, column=y)
+
+    def populate_board(self, x, y):
+        self.placed_bombs = 0
+        while self.placed_bombs < self.bomb_count:
+            i = random.randint(0, self.length-1)
+            j = random.randint(0, self.length-1)
+            if (x-i)**2>1 or (y-j)**2>1:
+                self.info[i][j] = TileInfo('Mine', i, j)
+                self.placed_bombs +=1
+        for i in range(self.length):
+            for j in range(self.length):
+                if self.info[i][j] == None:
+                    self.info[i][j] = TileInfo('Empty', i, j)
+
+    def update_bombs(self):
+        if self.is_over:
+            return
+        num = self.bomb_count - self.flag_count
+        self.header.bomb_label['text'] = f'{num:03}'
+
+    def update_timer(self):
+        if self.is_over:
+            return
+        elapsed = int(time.time() - self.start)
+        self.header.timer['text'] = f'{elapsed:03}'
+        self.parent.after(1000, self.update_timer)
+
+    def get_images(self):
+        os.chdir(f'{sys.path[0]}\\Images')
+        image_dic = {}
+        for file in glob.glob('*.png'):
+            key = file.split('.')[0]
+            image_dic[key] = tk.PhotoImage(file=file)
+        return image_dic
+
     def adjacent_bombs(self, x, y):
         count = 0
         for i in range(max(0, x-1), min(self.length-1, x+1)+1):
@@ -231,21 +239,6 @@ class Game(tk.Frame):
         self.message.grid(row=0, column=0, columnspan=5)
         self.exit_button = tk.Button(self.popup, text='exit', command=self.popup.destroy)
         self.exit_button.grid(row=1, column=0, columnspan=5)
-
-#This really shouldn't be another class because it break encapsulation pretty badly for no reason but oh well
-class GameHeader(tk.Frame):
-
-    def __init__(self, parent):
-        super().__init__(parent)
-        self. parent = parent
-        self.bomb_label = tk.Label(self, text=f'{self.parent.bomb_count:03}', font=("Courier", 15), bg='black', fg='red')
-        self.timer = tk.Label(self, text=f'000', font=("Courier", 15), bg='black', fg='red')
-        self.best_label = tk.Label(self, text = 'Best Time:', font=('Courier', 10))
-        self.best_time = tk.Label(self, text=f'{best_times[self.parent.size]:03}', font=('Courier', 10))
-        self.bomb_label.pack(side='left', padx=2)
-        self.best_label.pack(side='left', padx=1)
-        self.best_time.pack(side='left', padx=1)
-        self.timer.pack(side='left', padx=2)
 
 class Board:
 
@@ -288,6 +281,9 @@ class TileButton(tk.Button):
 root = tk.Tk()
 app = Application(root)
 app.mainloop()
+
+
+
 
 
 
