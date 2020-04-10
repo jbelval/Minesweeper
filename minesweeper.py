@@ -1,5 +1,6 @@
 import tkinter as tk
-import PIL
+from PIL import Image, ImageTk
+# import PIL
 import random
 import time
 import glob, os, sys
@@ -11,7 +12,7 @@ Idea is to make two grids, one with Button classes, one with a custom info class
 """
 
 """Carryover Variables"""
-best_times = dict(small=999, medium=999, large=999)
+best_times = dict(small=7, medium=999, large=999)
 
 def update_best_times(size, time):
     if best_times[size] > time:
@@ -60,8 +61,9 @@ class Application(tk.Frame):
             if lines[i] == '"""Carryover Variables"""':
                 lines[i+1] = f"best_times = dict(small={best_times['small']}, medium={best_times['medium']}, large={best_times['large']})"
         with open(__file__, 'w') as f:
-            for line in lines:
-                f.write(f'{line}\n')
+            for i in range(len(lines)-1):
+                f.write(f'{lines[i]}\n')
+            f.write(lines[-1])
 
 class Game(tk.Frame):
 
@@ -173,12 +175,12 @@ class Game(tk.Frame):
         while self.placed_bombs < self.bomb_count:
             i = random.randint(0, self.length-1)
             j = random.randint(0, self.length-1)
-            if (x-i)**2>1 or (y-j)**2>1:
+            if ((x-i)**2>1 or (y-j)**2>1) and not self.info[i][j]:
                 self.info[i][j] = TileInfo('Mine', i, j)
                 self.placed_bombs +=1
         for i in range(self.length):
             for j in range(self.length):
-                if self.info[i][j] == None:
+                if not self.info[i][j]:
                     self.info[i][j] = TileInfo('Empty', i, j)
 
     def update_bombs(self):
@@ -195,11 +197,12 @@ class Game(tk.Frame):
         self.parent.after(1000, self.update_timer)
 
     def get_images(self):
-        os.chdir(f'{sys.path[0]}\\Images')
         image_dic = {}
-        for file in glob.glob('*.png'):
+        image_dir = f'{os.path.dirname(os.path.realpath(__file__))}\\Images'
+        for file in os.listdir(image_dir):
             key = file.split('.')[0]
-            image_dic[key] = tk.PhotoImage(file=file)
+            img = ImageTk.PhotoImage(Image.open(f'{image_dir}\\{file}'))
+            image_dic[key] = img
         return image_dic
 
     def adjacent_bombs(self, x, y):
@@ -235,10 +238,11 @@ class Game(tk.Frame):
         self.is_over = True
         update_best_times(self.size, int(self.header.timer['text']))
         self.popup = tk.Toplevel(self)
-        self.message = tk.Label(self.popup, text='You won!!')
-        self.message.grid(row=0, column=0, columnspan=5)
-        self.exit_button = tk.Button(self.popup, text='exit', command=self.popup.destroy)
-        self.exit_button.grid(row=1, column=0, columnspan=5)
+        # self.popup.positionfrom(self.parent)
+        self.popup.message = tk.Label(self.popup, text='You won!!')
+        self.popup.message.grid(row=0, column=0, columnspan=5)
+        self.popup.exit_button = tk.Button(self.popup, text='exit', command=self.popup.destroy)
+        self.popup.exit_button.grid(row=1, column=0, columnspan=5)
 
 class Board:
 
@@ -281,23 +285,3 @@ class TileButton(tk.Button):
 root = tk.Tk()
 app = Application(root)
 app.mainloop()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
